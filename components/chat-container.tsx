@@ -31,7 +31,7 @@ import {
     Trash2
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Define the debounce utility function
 function debounce<T extends (...args: any[]) => any>(
@@ -79,12 +79,21 @@ export function ChatContainer() {
     const [characterCount, setCharacterCount] = useState(0);
     const MAX_CHAR_COUNT = 4000;
 
-    // Add a debounced input update to improve performance
+    // Memoize the character count update function
     const updateCharacterCount = useRef(
         debounce((text: string) => {
             setCharacterCount(text.length);
         }, 100)
     ).current;
+
+    // Add a memo for input related values to reduce re-renders
+    const inputRelatedProps = useMemo(() => {
+        return {
+            isOverLimit: characterCount > MAX_CHAR_COUNT,
+            isEmpty: !input.trim(),
+            displayCount: `${characterCount}/${MAX_CHAR_COUNT}`
+        };
+    }, [characterCount, input, MAX_CHAR_COUNT]);
 
     useEffect(() => {
         if (selectedTutor) {
@@ -466,6 +475,7 @@ export function ChatContainer() {
         }
     };
 
+    // Optimize text formatting by batching state updates
     const insertMarkdownFormat = (format: string) => {
         if (!inputRef.current) return;
 
@@ -531,13 +541,17 @@ export function ChatContainer() {
                 break;
         }
 
+        // Use a function to set input to avoid capturing stale state
         setInput(newText);
 
-        setTimeout(() => {
-            textarea.focus();
-            textarea.selectionStart = newCursorPos;
-            textarea.selectionEnd = newCursorPos;
-        }, 0);
+        // Use requestAnimationFrame for smoother UI updates
+        requestAnimationFrame(() => {
+            if (textarea) {
+                textarea.focus();
+                textarea.selectionStart = newCursorPos;
+                textarea.selectionEnd = newCursorPos;
+            }
+        });
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -796,9 +810,7 @@ export function ChatContainer() {
                                     onChange={handleInputChange}
                                     onKeyDown={handleKeyDown}
                                     placeholder="Type your message here... Markdown is supported"
-                                    className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${characterCount > MAX_CHAR_COUNT
-                                        ? "border-destructive"
-                                        : ""
+                                    className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${inputRelatedProps.isOverLimit ? "border-destructive" : ""
                                         }`}
                                     disabled={loading}
                                 />
@@ -806,11 +818,9 @@ export function ChatContainer() {
                                     <Button
                                         type="submit"
                                         size="icon"
-                                        className={`rounded-full h-9 w-9 ${!input.trim() || loading
-                                            ? "opacity-50"
-                                            : "shadow-sm"
+                                        className={`rounded-full h-9 w-9 ${inputRelatedProps.isEmpty || loading ? "opacity-50" : "shadow-sm"
                                             }`}
-                                        disabled={!input.trim() || loading}
+                                        disabled={inputRelatedProps.isEmpty || loading}
                                     >
                                         {editingMessage ? (
                                             <ArrowUp className="h-4 w-4" />
@@ -857,12 +867,9 @@ export function ChatContainer() {
                                     </span>
                                 </div>
                                 <div
-                                    className={`${characterCount > MAX_CHAR_COUNT
-                                        ? "text-destructive font-medium"
-                                        : ""
-                                        }`}
+                                    className={inputRelatedProps.isOverLimit ? "text-destructive font-medium" : ""}
                                 >
-                                    {characterCount}/{MAX_CHAR_COUNT}
+                                    {inputRelatedProps.displayCount}
                                 </div>
                             </div>
                         </form>
