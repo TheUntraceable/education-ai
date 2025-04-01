@@ -2,27 +2,27 @@
 
 import type React from "react";
 
-import { useState, useEffect, useRef } from "react";
+import { EmptyState } from "@/components/empty-state";
+import { MessageItem } from "@/components/message-item";
+import { MobileSidebar } from "@/components/mobile-sidebar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-    Send,
-    ArrowUp,
-    Trash2,
-    Menu,
-    GraduationCap,
-    MessageSquare,
-    PlusCircle,
-} from "lucide-react";
-import type { ChatMessage, Tutor } from "@/lib/types";
-import { MessageItem } from "@/components/message-item";
-import { EmptyState } from "@/components/empty-state";
-import { MobileSidebar } from "@/components/mobile-sidebar";
+import { Textarea } from "@/components/ui/textarea";
 import { useMobile } from "@/hooks/use-mobile";
 import { useSearchParamsClient } from "@/hooks/use-search-params-client";
 import { useToast } from "@/hooks/use-toast";
+import type { ChatMessage, Tutor } from "@/lib/types";
+import {
+    ArrowUp,
+    GraduationCap,
+    Menu,
+    MessageSquare,
+    PlusCircle,
+    Send,
+    Trash2,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function ChatContainer() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -49,7 +49,7 @@ export function ChatContainer() {
 
     useEffect(() => {
         if (selectedChat) {
-            fetchMessages(selectedChat);
+            fetchMessages({ chatId: selectedChat, showRefetching: true });
         } else {
             setMessages([]);
         }
@@ -77,8 +77,11 @@ export function ChatContainer() {
         }
     };
 
-    const fetchMessages = async (chatId: string) => {
-        setLoadingMessages(true);
+    const fetchMessages = async ({ chatId, showRefetching = false }: { chatId: string; showRefetching: boolean }) => {
+        if (!chatId) return;
+        if (showRefetching) {
+            setLoadingMessages(true);
+        }
         try {
             const response = await fetch(`/api/messages?chatId=${chatId}`);
             if (!response.ok) {
@@ -198,10 +201,8 @@ export function ChatContainer() {
                     ),
                 );
             }
-
-            // After streaming is complete, the message is already saved to the database by the API
-            // Refresh messages to get the proper ID
-            fetchMessages(selectedChat);
+            setStreamingContent(accumulatedContent);
+            fetchMessages({ chatId: selectedChat, showRefetching: false }); // Re-enable fetching messages after streaming
         } catch (error) {
             console.error("Error sending message:", error);
             toast({
@@ -350,7 +351,7 @@ export function ChatContainer() {
 
             // After streaming is complete, the message is already saved to the database by the API
             // Refresh messages to get the proper ID
-            fetchMessages(selectedChat);
+            fetchMessages({chatId: selectedChat, showRefetching: false});
         } catch (error) {
             console.error("Error rerunning message:", error);
             toast({
@@ -467,9 +468,9 @@ export function ChatContainer() {
                                 isLastUserMessage={
                                     message.role === "user" &&
                                     index ===
-                                        messages.findLastIndex(
-                                            (m) => m.role === "user",
-                                        )
+                                    messages.findLastIndex(
+                                        (m) => m.role === "user",
+                                    )
                                 }
                                 isStreaming={message._id.startsWith(
                                     "streaming-",
