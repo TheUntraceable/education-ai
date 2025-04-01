@@ -22,9 +22,11 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
                         <h2 className="text-2xl font-bold mb-4">
                             Not signed in
                         </h2>
-                        <p className="mb-4">Please sign in first to see this content.</p>
-                        <Link 
-                            href="/api/auth/signin" 
+                        <p className="mb-4">
+                            Please sign in first to see this content.
+                        </p>
+                        <Link
+                            href="/api/auth/signin"
                             className="inline-block bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-md transition-colors"
                         >
                             Sign In

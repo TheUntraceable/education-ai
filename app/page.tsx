@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 
-import { LoginHandler } from "@/components/ui/login"
+import { LoginHandler } from "@/components/ui/login";
 
 const FeatureCard = ({
     icon,
