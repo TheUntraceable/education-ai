@@ -1,27 +1,32 @@
 "use client";
 
-import type React from "react";
-
 import { EmptyState } from "@/components/empty-state";
 import { MessageItem } from "@/components/message-item";
 import { MobileSidebar } from "@/components/mobile-sidebar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip } from "@heroui/tooltip";
 import { useMobile } from "@/hooks/use-mobile";
 import { useSearchParamsClient } from "@/hooks/use-search-params-client";
 import { useToast } from "@/hooks/use-toast";
 import type { ChatMessage, Tutor } from "@/lib/types";
 import {
     ArrowUp,
+    ChevronDown,
     GraduationCap,
+    Info,
+    Loader2,
     Menu,
     MessageSquare,
     PlusCircle,
     Send,
-    Trash2,
+    Trash2
 } from "lucide-react";
+import type React from "react";
 import { useEffect, useRef, useState } from "react";
 
 export function ChatContainer() {
@@ -40,6 +45,11 @@ export function ChatContainer() {
     const isMobile = useMobile();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const { toast } = useToast();
+    const [autoScroll, setAutoScroll] = useState(true);
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const [characterCount, setCharacterCount] = useState(0);
+    const MAX_CHAR_COUNT = 4000;
 
     useEffect(() => {
         if (selectedTutor) {
@@ -56,8 +66,31 @@ export function ChatContainer() {
     }, [selectedChat]);
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages, streamingContent]);
+        if (autoScroll) {
+            scrollToBottom();
+        }
+    }, [messages, streamingContent, autoScroll]);
+
+    useEffect(() => {
+        const scrollArea = scrollAreaRef.current;
+
+        const handleScroll = () => {
+            if (!scrollArea) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+            setAutoScroll(isAtBottom);
+            setShowScrollToBottom(!isAtBottom);
+        };
+
+        scrollArea?.addEventListener("scroll", handleScroll);
+        return () => scrollArea?.removeEventListener("scroll", handleScroll);
+    }, []);
+
+    useEffect(() => {
+        setCharacterCount(input.length);
+    }, [input]);
 
     const fetchTutor = async (tutorId: string) => {
         try {
@@ -111,10 +144,24 @@ export function ChatContainer() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const handleScrollToBottom = () => {
+        scrollToBottom();
+        setAutoScroll(true);
+        setShowScrollToBottom(false);
+    };
+
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
 
         if (!input.trim() || !selectedTutor || !selectedChat) return;
+        if (characterCount > MAX_CHAR_COUNT) {
+            toast({
+                title: "Message too long",
+                description: `Your message exceeds the ${MAX_CHAR_COUNT} character limit.`,
+                variant: "destructive",
+            });
+            return;
+        }
 
         const messageContent = input;
         setInput("");
@@ -122,10 +169,8 @@ export function ChatContainer() {
         setEditingMessage(null);
         setStreamingContent("");
 
-        // Add to message history
         setMessageHistory((prev) => [messageContent, ...prev.slice(0, 49)]);
 
-        // Optimistically add user message
         const tempId = `temp-${Date.now()}`;
         const userMessage: ChatMessage = {
             _id: tempId,
@@ -137,15 +182,8 @@ export function ChatContainer() {
 
         setMessages((prev) => [...prev, userMessage]);
 
-        // Send message to API
         setLoading(true);
         try {
-            console.log("Sending message:", {
-                chatId: selectedChat,
-                content: messageContent,
-                tutorId: selectedTutor,
-            });
-
             const response = await fetch("/api/messages", {
                 method: "POST",
                 headers: {
@@ -165,7 +203,6 @@ export function ChatContainer() {
                 );
             }
 
-            // Handle streaming response
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
 
@@ -173,7 +210,6 @@ export function ChatContainer() {
                 throw new Error("Failed to get response reader");
             }
 
-            // Create a temporary message for streaming content
             const streamingId = `streaming-${Date.now()}`;
             const streamingMessage: ChatMessage = {
                 _id: streamingId,
@@ -194,11 +230,9 @@ export function ChatContainer() {
                     break;
                 }
 
-                // Decode and accumulate the chunk
                 const chunk = decoder.decode(value, { stream: true });
                 accumulatedContent += chunk;
 
-                // Update the streaming message
                 setMessages((prev) =>
                     prev.map((msg) =>
                         msg._id === streamingId
@@ -208,7 +242,7 @@ export function ChatContainer() {
                 );
             }
             setStreamingContent(accumulatedContent);
-            fetchMessages({ chatId: selectedChat, showRefetching: false }); // Re-enable fetching messages after streaming
+            fetchMessages({ chatId: selectedChat, showRefetching: false });
         } catch (error) {
             console.error("Error sending message:", error);
             toast({
@@ -219,7 +253,6 @@ export function ChatContainer() {
                 variant: "destructive",
             });
 
-            // Remove the optimistic user message and streaming message if there was an error
             setMessages((prev) =>
                 prev.filter(
                     (msg) =>
@@ -234,7 +267,6 @@ export function ChatContainer() {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        // Handle up arrow for message history
         if (e.key === "ArrowUp" && !e.shiftKey && input === "") {
             e.preventDefault();
             if (
@@ -247,7 +279,6 @@ export function ChatContainer() {
             }
         }
 
-        // Handle down arrow for message history
         if (e.key === "ArrowDown" && !e.shiftKey && historyIndex >= 0) {
             e.preventDefault();
             if (historyIndex > 0) {
@@ -260,7 +291,6 @@ export function ChatContainer() {
             }
         }
 
-        // Handle enter for submit (but allow shift+enter for new line)
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSubmit();
@@ -276,17 +306,14 @@ export function ChatContainer() {
     const handleRerunMessage = async (messageIndex: number) => {
         if (!selectedChat || !selectedTutor) return;
 
-        // Find the message and all messages before it
         const messagesToKeep = messages.slice(0, messageIndex);
         const messageToRerun = messages[messageIndex];
 
         if (messageToRerun.role !== "user") return;
 
-        // Update UI to show only messages up to the selected one
         setMessages(messagesToKeep);
         setStreamingContent("");
 
-        // Re-send the message
         setLoading(true);
         try {
             const response = await fetch("/api/messages", {
@@ -309,10 +336,8 @@ export function ChatContainer() {
                 );
             }
 
-            // Add the user message back
             setMessages((prev) => [...prev, messageToRerun]);
 
-            // Handle streaming response
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
 
@@ -320,7 +345,6 @@ export function ChatContainer() {
                 throw new Error("Failed to get response reader");
             }
 
-            // Create a temporary message for streaming content
             const streamingId = `streaming-${Date.now()}`;
             const streamingMessage: ChatMessage = {
                 _id: streamingId,
@@ -341,11 +365,9 @@ export function ChatContainer() {
                     break;
                 }
 
-                // Decode and accumulate the chunk
                 const chunk = decoder.decode(value, { stream: true });
                 accumulatedContent += chunk;
 
-                // Update the streaming message
                 setMessages((prev) =>
                     prev.map((msg) =>
                         msg._id === streamingId
@@ -355,8 +377,6 @@ export function ChatContainer() {
                 );
             }
 
-            // After streaming is complete, the message is already saved to the database by the API
-            // Refresh messages to get the proper ID
             fetchMessages({ chatId: selectedChat, showRefetching: false });
         } catch (error) {
             console.error("Error rerunning message:", error);
@@ -366,7 +386,6 @@ export function ChatContainer() {
                 variant: "destructive",
             });
 
-            // Restore the messages if there was an error
             setMessages((prev) => [...prev, messageToRerun]);
         } finally {
             setLoading(false);
@@ -407,13 +426,14 @@ export function ChatContainer() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-screen">
-            <header className="border-b p-4 flex items-center justify-between">
+        <div className="flex-1 flex flex-col h-screen max-h-screen bg-muted/10">
+            <header className="border-b p-4 flex items-center justify-between backdrop-blur-sm bg-background/90 sticky top-0 z-10">
                 {isMobile && (
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => setSidebarOpen(true)}
+                        className="mr-2"
                     >
                         <Menu className="h-5 w-5" />
                     </Button>
@@ -422,132 +442,208 @@ export function ChatContainer() {
                 <div className="flex-1 flex items-center">
                     {tutor ? (
                         <div className="flex items-center">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mr-2">
-                                <GraduationCap className="h-4 w-4" />
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3 shadow-sm">
+                                <GraduationCap className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                                <h2 className="font-medium">{tutor.name}</h2>
-                                <p className="text-xs text-muted-foreground">
-                                    {tutor.subject}
-                                </p>
+                                <h2 className="font-semibold">{tutor.name}</h2>
+                                <div className="flex items-center">
+                                    <Badge
+                                        variant="outline"
+                                        className="text-xs font-normal px-2 py-0"
+                                    >
+                                        {tutor.subject}
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
                     ) : selectedTutor ? (
-                        <Skeleton className="h-8 w-40" />
+                        <div className="flex items-center">
+                            <Skeleton className="w-10 h-10 rounded-full mr-3" />
+                            <div>
+                                <Skeleton className="h-5 w-40 mb-1" />
+                                <Skeleton className="h-4 w-20" />
+                            </div>
+                        </div>
                     ) : (
                         <h2 className="font-medium">Select a tutor to start</h2>
                     )}
                 </div>
 
-                {selectedChat && messages.length > 0 && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={clearChat}
-                        title="Clear chat"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                )}
+                <div className="flex items-center space-x-1">
+                    {selectedChat && messages.length > 0 && (
+                        <Tooltip content="Clear conversation">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={clearChat}
+                                className="text-muted-foreground hover:text-destructive"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </Tooltip>
+                    )}
+                </div>
             </header>
 
-            <ScrollArea className="flex-1 p-4">
-                {loadingMessages ? (
-                    <div className="space-y-4">
-                        {Array(3)
-                            .fill(0)
-                            .map((_, i) => (
-                                <div key={i} className="flex flex-col gap-2">
-                                    <Skeleton className="h-6 w-20" />
-                                    <Skeleton className="h-24 w-full" />
-                                </div>
-                            ))}
-                    </div>
-                ) : selectedChat && messages.length > 0 ? (
-                    <div className="space-y-6">
-                        {messages.map((message, index) => (
-                            <MessageItem
-                                key={message._id}
-                                message={message}
-                                onEdit={handleEditMessage}
-                                onRerun={() => handleRerunMessage(index)}
-                                isLastUserMessage={
-                                    message.role === "user" &&
-                                    index ===
+            <div className="relative flex-1 overflow-hidden">
+                <ScrollArea className="h-full px-4 py-6" ref={scrollAreaRef}>
+                    {loadingMessages ? (
+                        <div className="space-y-6 max-w-3xl mx-auto">
+                            {Array(3)
+                                .fill(0)
+                                .map((_, i) => (
+                                    <Card
+                                        key={i}
+                                        className="p-4 flex flex-col gap-2"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Skeleton className="h-8 w-8 rounded-full" />
+                                            <Skeleton className="h-4 w-24" />
+                                        </div>
+                                        <Skeleton className="h-24 w-full mt-2" />
+                                    </Card>
+                                ))}
+                        </div>
+                    ) : selectedChat && messages.length > 0 ? (
+                        <div className="space-y-6 max-w-3xl mx-auto">
+                            {messages.map((message, index) => (
+                                <MessageItem
+                                    key={message._id}
+                                    message={message}
+                                    onEdit={handleEditMessage}
+                                    onRerun={() => handleRerunMessage(index)}
+                                    isLastUserMessage={
+                                        message.role === "user" &&
+                                        index ===
                                         messages.findLastIndex(
                                             (m) => m.role === "user",
                                         )
-                                }
-                                isStreaming={message._id.startsWith(
-                                    "streaming-",
-                                )}
-                            />
-                        ))}
-                        {loading &&
-                            !messages.some((msg) =>
-                                msg._id.startsWith("streaming-"),
-                            ) && (
-                                <div className="flex items-center justify-center py-4">
-                                    <div className="animate-pulse flex space-x-2">
-                                        <div className="h-2 w-2 bg-primary rounded-full"></div>
-                                        <div className="h-2 w-2 bg-primary rounded-full"></div>
-                                        <div className="h-2 w-2 bg-primary rounded-full"></div>
+                                    }
+                                    isStreaming={message._id.startsWith(
+                                        "streaming-",
+                                    )}
+                                />
+                            ))}
+                            {loading &&
+                                !messages.some((msg) =>
+                                    msg._id.startsWith("streaming-"),
+                                ) && (
+                                    <div className="flex items-center justify-center py-6">
+                                        <div className="flex items-center space-x-2 text-primary text-sm">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <span>Thinking...</span>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        <div ref={messagesEndRef} />
-                    </div>
-                ) : selectedChat ? (
-                    <EmptyState
-                        title="Start a conversation"
-                        description="Send a message to begin chatting with your tutor."
-                        icon={<MessageSquare className="h-12 w-12" />}
-                    />
-                ) : selectedTutor ? (
-                    <EmptyState
-                        title="Create a new chat"
-                        description="Start a new conversation with this tutor."
-                        icon={<PlusCircle className="h-12 w-12" />}
-                    />
-                ) : (
-                    <EmptyState
-                        title="Welcome to Education AI"
-                        description="Select a tutor from the sidebar to get started."
-                        icon={<GraduationCap className="h-12 w-12" />}
-                    />
+                                )}
+                            <div ref={messagesEndRef} className="h-1" />
+                        </div>
+                    ) : selectedChat ? (
+                        <div className="h-full flex items-center justify-center">
+                            <EmptyState
+                                title="Start a conversation"
+                                description="Send a message to begin chatting with your tutor."
+                                icon={<MessageSquare className="h-12 w-12" />}
+                            />
+                        </div>
+                    ) : selectedTutor ? (
+                        <div className="h-full flex items-center justify-center">
+                            <EmptyState
+                                title="Create a new chat"
+                                description="Start a new conversation with this tutor."
+                                icon={<PlusCircle className="h-12 w-12" />}
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center justify-center">
+                            <EmptyState
+                                title="Welcome to Education AI"
+                                description="Select a tutor from the sidebar to get started."
+                                icon={<GraduationCap className="h-12 w-12" />}
+                            />
+                        </div>
+                    )}
+                </ScrollArea>
+
+                {showScrollToBottom && (
+                    <Button
+                        className="absolute bottom-4 right-4 rounded-full shadow-md"
+                        size="icon"
+                        onClick={handleScrollToBottom}
+                    >
+                        <ChevronDown className="h-4 w-4" />
+                    </Button>
                 )}
-            </ScrollArea>
+            </div>
 
             {selectedChat && (
-                <div className="border-t p-4">
-                    <form
-                        onSubmit={handleSubmit}
-                        className="flex items-end gap-2"
-                    >
-                        <Textarea
-                            ref={inputRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Type your message..."
-                            className="min-h-24 resize-none"
-                            disabled={loading}
-                        />
-                        <Button
-                            type="submit"
-                            size="icon"
-                            disabled={!input.trim() || loading}
+                <div className="border-t bg-background p-4">
+                    <div className="max-w-3xl mx-auto">
+                        <form
+                            onSubmit={handleSubmit}
+                            className="flex flex-col gap-2"
                         >
-                            {editingMessage ? (
-                                <ArrowUp className="h-4 w-4" />
-                            ) : (
-                                <Send className="h-4 w-4" />
-                            )}
-                        </Button>
-                    </form>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                        Press Enter to send, Shift+Enter for new line, ↑ to edit
-                        last message
+                            <div className="relative">
+                                <Textarea
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Type your message here..."
+                                    className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${characterCount > MAX_CHAR_COUNT
+                                            ? "border-destructive"
+                                            : ""
+                                        }`}
+                                    disabled={loading}
+                                />
+                                <div className="absolute bottom-3 right-3">
+                                    <Button
+                                        type="submit"
+                                        size="icon"
+                                        className={`rounded-full h-9 w-9 ${!input.trim() || loading
+                                                ? "opacity-50"
+                                                : "shadow-sm"
+                                            }`}
+                                        disabled={!input.trim() || loading}
+                                    >
+                                        {editingMessage ? (
+                                            <ArrowUp className="h-4 w-4" />
+                                        ) : loading ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
+                                <div className="flex items-center gap-1.5">
+                                    <Tooltip content="Keyboard shortcuts and formatting">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6"
+                                        >
+                                            <Info className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </Tooltip>
+                                    <span>
+                                        Enter to send • Shift+Enter for new line
+                                        • ↑ to edit last message • Supports
+                                        Markdown
+                                    </span>
+                                </div>
+                                <div
+                                    className={`${characterCount > MAX_CHAR_COUNT
+                                            ? "text-destructive font-medium"
+                                            : ""
+                                        }`}
+                                >
+                                    {characterCount}/{MAX_CHAR_COUNT}
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
