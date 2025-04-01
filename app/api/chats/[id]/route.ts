@@ -4,10 +4,10 @@ import { ObjectId } from "mongodb";
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
 
         const client = await clientPromise;
         const db = client.db("education-ai");
@@ -35,10 +35,10 @@ export async function GET(
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
         const { title } = await request.json();
 
         const client = await clientPromise;
@@ -70,10 +70,10 @@ export async function PATCH(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
 
         const client = await clientPromise;
         const db = client.db("education-ai");

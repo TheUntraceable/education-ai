@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { StreamingTextResponse, OpenAIStream } from "ai";
 import clientPromise from "@/lib/mongodb";
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText } from "ai";
 import { ObjectId } from "mongodb";
-import { OpenAI } from "openai";
+import { NextResponse } from "next/server";
 
-// Initialize Nebius AI (OpenAI compatible)
-const ai = new OpenAI({
+const ai = createOpenAI({
     baseURL: "https://api.studio.nebius.com/v1/",
     apiKey: process.env.NEBIUS_API_KEY,
+    compatibility: "compatible",
 });
 
 export async function GET(request: Request) {
@@ -113,13 +113,13 @@ export async function POST(request: Request) {
 
         // Format messages for AI
         const messageHistory = previousMessages.map((msg) => ({
-            role: msg.role === "user" ? "user" : "assistant",
+            role: msg.role === "user" ? "user" as const : "assistant" as const,
             content: msg.content,
         }));
 
         // Add system message with tutor info
         const systemMessage = {
-            role: "system",
+            role: "system" as const,
             content: `You are ${tutor.name}, a tutor specializing in ${tutor.subject}. ${tutor.description} Be helpful, encouraging, and educational in your responses. Explain concepts clearly and provide examples when appropriate. Keep your responses concise and focused on the student's questions.`,
         };
 
@@ -127,78 +127,28 @@ export async function POST(request: Request) {
 
         try {
             // Generate AI response with streaming
-            const response = await ai.chat.completions.create({
-                model: "deepseek-ai/DeepSeek-V3-0324", // Use the appropriate model supported by Nebius
-                messages: [systemMessage, ...messageHistory],
-                temperature: 0.7,
-                max_tokens: 1500,
-                stream: true, // Enable streaming
+            const stream = streamText({
+                model: ai("deepseek-ai/DeepSeek-R1-Distill-Llama-70B"),
+                messages: [...messageHistory, systemMessage],
             });
 
-            // Create a stream from the OpenAI response
-            const stream =
-                (response,
-                {
-                    async onCompletion(completion) {
-                        // Save the complete message to the database once streaming is done
-                        const assistantMessage = {
-                            chatId,
-                            content: completion,
-                            role: "assistant",
-                            createdAt: new Date(),
-                        };
-
-                        const result = await db
-                            .collection("messages")
-                            .insertOne(assistantMessage);
-                        console.log(
-                            "Saved assistant message with ID:",
-                            result.insertedId,
-                        );
-
-                        // If this is the first message, update chat title
-                        if (previousMessages.length <= 1) {
-                            try {
-                                // Generate a title based on the first user message
-                                const titleCompletion =
-                                    await ai.chat.completions.create({
-                                        model: "deepseek-ai/DeepSeek-V3-0324",
-                                        messages: [
-                                            {
-                                                role: "system",
-                                                content:
-                                                    "Generate a short, concise title (maximum 6 words) for a chat that starts with this message. Return only the title text with no quotes or additional text.",
-                                            },
-                                            { role: "user", content },
-                                        ],
-                                        temperature: 0.7,
-                                        max_tokens: 20,
-                                    });
-
-                                const title =
-                                    titleCompletion.choices[0].message.content.trim();
-
-                                await db
-                                    .collection("chats")
-                                    .updateOne(
-                                        { _id: new ObjectId(chatId) },
-                                        { $set: { title } },
-                                    );
-
-                                console.log("Updated chat title to:", title);
-                            } catch (titleError) {
-                                console.error(
-                                    "Error generating title:",
-                                    titleError,
-                                );
-                                // Continue even if title generation fails
-                            }
-                        }
-                    },
+            stream.text.then((text) => {
+                console.log("AI response:", text);
+                // Save AI response to the database
+                const assistantMessage = {
+                    chatId,
+                    content: text,
+                    role: "assistant",
+                    createdAt: new Date(),
+                };
+                db.collection("messages").insertOne(assistantMessage).then((result) => {
+                    console.log(
+                        "Saved assistant message with ID:",
+                        result.insertedId,
+                    );
                 });
+            });
 
-            // Return the streaming response
-            return new StreamingTextResponse(stream);
         } catch (aiError) {
             console.error("AI Error:", aiError);
 
@@ -218,13 +168,13 @@ export async function POST(request: Request) {
             return NextResponse.json({
                 ...fallbackMessage,
                 _id: fallbackResult.insertedId.toString(),
-                error: aiError.message,
+                error: aiError,
             });
         }
     } catch (error) {
         console.error("Error creating message:", error);
         return NextResponse.json(
-            { error: "Failed to create message", details: error.message },
+            { error: "Failed to create message", details: error },
             { status: 500 },
         );
     }
