@@ -805,32 +805,37 @@ export function ChatContainer() {
 
                             <div className="relative">
                                 <Textarea
+                                    variant="bordered"
+                                    isClearable
                                     ref={inputRef}
                                     value={input}
                                     onValueChange={setInput}
                                     onKeyDown={handleKeyDown}
                                     placeholder="Type your message here... Markdown is supported"
-                                    className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${inputRelatedProps.isOverLimit ? "border-destructive" : ""
+                                    className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${inputRelatedProps.isOverLimit ? "!border-destructive" : ""
                                         }`}
-                                    disabled={loading}
+                                    isDisabled={loading}
+                                    endContent={
+                                        <div className="absolute bottom-3 right-3">
+                                            <Button
+                                                type="submit"
+                                                size="icon"
+                                                className={`rounded-full h-9 w-9 ${inputRelatedProps.isEmpty || loading ? "opacity-50" : "shadow-sm"
+                                                    }`}
+                                                disabled={inputRelatedProps.isEmpty || loading}
+                                            >
+                                                {editingMessage ? (
+                                                    <ArrowUp className="h-4 w-4" />
+                                                ) : loading ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Send className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+
+                                    }
                                 />
-                                <div className="absolute bottom-3 right-3">
-                                    <Button
-                                        type="submit"
-                                        size="icon"
-                                        className={`rounded-full h-9 w-9 ${inputRelatedProps.isEmpty || loading ? "opacity-50" : "shadow-sm"
-                                            }`}
-                                        disabled={inputRelatedProps.isEmpty || loading}
-                                    >
-                                        {editingMessage ? (
-                                            <ArrowUp className="h-4 w-4" />
-                                        ) : loading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Send className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                </div>
                             </div>
 
                             <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
