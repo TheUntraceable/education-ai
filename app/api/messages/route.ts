@@ -113,7 +113,10 @@ export async function POST(request: Request) {
 
         // Format messages for AI
         const messageHistory = previousMessages.map((msg) => ({
-            role: msg.role === "user" ? "user" as const : "assistant" as const,
+            role:
+                msg.role === "user"
+                    ? ("user" as const)
+                    : ("assistant" as const),
             content: msg.content,
         }));
 
@@ -141,19 +144,19 @@ export async function POST(request: Request) {
                     role: "assistant",
                     createdAt: new Date(),
                 };
-                db.collection("messages").insertOne(assistantMessage).then((result) => {
-                    console.log(
-                        "Saved assistant message with ID:",
-                        result.insertedId,
-                    );
-                });
+                db.collection("messages")
+                    .insertOne(assistantMessage)
+                    .then((result) => {
+                        console.log(
+                            "Saved assistant message with ID:",
+                            result.insertedId,
+                        );
+                    });
             });
-            return stream.toTextStreamResponse()
-
+            return stream.toTextStreamResponse();
         } catch (aiError) {
             console.error("AI Error:", aiError);
 
-            // Save a fallback message if AI fails
             const fallbackMessage = {
                 chatId,
                 content:

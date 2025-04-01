@@ -23,7 +23,6 @@ export default function Providers({
                     <Toaster />
                 </ThemeProvider>
             </SessionProvider>
-
         </HeroUIProvider>
     );
 }

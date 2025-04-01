@@ -77,7 +77,13 @@ export function ChatContainer() {
         }
     };
 
-    const fetchMessages = async ({ chatId, showRefetching = false }: { chatId: string; showRefetching: boolean }) => {
+    const fetchMessages = async ({
+        chatId,
+        showRefetching = false,
+    }: {
+        chatId: string;
+        showRefetching: boolean;
+    }) => {
         if (!chatId) return;
         if (showRefetching) {
             setLoadingMessages(true);
@@ -351,7 +357,7 @@ export function ChatContainer() {
 
             // After streaming is complete, the message is already saved to the database by the API
             // Refresh messages to get the proper ID
-            fetchMessages({chatId: selectedChat, showRefetching: false});
+            fetchMessages({ chatId: selectedChat, showRefetching: false });
         } catch (error) {
             console.error("Error rerunning message:", error);
             toast({
@@ -468,9 +474,9 @@ export function ChatContainer() {
                                 isLastUserMessage={
                                     message.role === "user" &&
                                     index ===
-                                    messages.findLastIndex(
-                                        (m) => m.role === "user",
-                                    )
+                                        messages.findLastIndex(
+                                            (m) => m.role === "user",
+                                        )
                                 }
                                 isStreaming={message._id.startsWith(
                                     "streaming-",
