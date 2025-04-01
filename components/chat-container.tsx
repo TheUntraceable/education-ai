@@ -9,16 +9,20 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Tooltip } from "@heroui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMobile } from "@/hooks/use-mobile";
 import { useSearchParamsClient } from "@/hooks/use-search-params-client";
 import { useToast } from "@/hooks/use-toast";
 import type { ChatMessage, Tutor } from "@/lib/types";
 import {
     ArrowUp,
+    Bold,
     ChevronDown,
+    Code,
     GraduationCap,
     Info,
+    Italic,
+    List,
     Loader2,
     Menu,
     MessageSquare,
@@ -28,6 +32,30 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+
+// Define the debounce utility function
+function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    const debounced = (...args: Parameters<T>) => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+        }
+        timeout = setTimeout(() => func(...args), wait);
+    };
+
+    debounced.cancel = () => {
+        if (timeout !== null) {
+            clearTimeout(timeout);
+            timeout = null;
+        }
+    };
+
+    return debounced as T & { cancel: () => void };
+}
 
 export function ChatContainer() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -50,6 +78,13 @@ export function ChatContainer() {
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const [characterCount, setCharacterCount] = useState(0);
     const MAX_CHAR_COUNT = 4000;
+
+    // Add a debounced input update to improve performance
+    const updateCharacterCount = useRef(
+        debounce((text: string) => {
+            setCharacterCount(text.length);
+        }, 100)
+    ).current;
 
     useEffect(() => {
         if (selectedTutor) {
@@ -89,8 +124,14 @@ export function ChatContainer() {
     }, []);
 
     useEffect(() => {
-        setCharacterCount(input.length);
-    }, [input]);
+        // Only update character count with debounce
+        updateCharacterCount(input);
+
+        // Clean up debounce on unmount
+        return () => {
+            updateCharacterCount.cancel();
+        };
+    }, [input, updateCharacterCount]);
 
     const fetchTutor = async (tutorId: string) => {
         try {
@@ -425,6 +466,85 @@ export function ChatContainer() {
         }
     };
 
+    const insertMarkdownFormat = (format: string) => {
+        if (!inputRef.current) return;
+
+        const textarea = inputRef.current;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+
+        let newText = text;
+        let newCursorPos = end;
+
+        switch (format) {
+            case "bold":
+                newText =
+                    text.substring(0, start) +
+                    `**${text.substring(start, end)}**` +
+                    text.substring(end);
+                newCursorPos = end + 4;
+                break;
+            case "italic":
+                newText =
+                    text.substring(0, start) +
+                    `*${text.substring(start, end)}*` +
+                    text.substring(end);
+                newCursorPos = end + 2;
+                break;
+            case "code":
+                newText =
+                    text.substring(0, start) +
+                    "`" +
+                    text.substring(start, end) +
+                    "`" +
+                    text.substring(end);
+                newCursorPos = end + 2;
+                break;
+            case "codeblock":
+                newText =
+                    text.substring(0, start) +
+                    "\n```\n" +
+                    text.substring(start, end) +
+                    "\n```\n" +
+                    text.substring(end);
+                newCursorPos = end + 8;
+                break;
+            case "list":
+                const selectedText = text.substring(start, end);
+                if (selectedText.includes("\n")) {
+                    const formattedList = selectedText
+                        .split("\n")
+                        .map((line) => (line.trim() ? `- ${line}` : line))
+                        .join("\n");
+                    newText =
+                        text.substring(0, start) +
+                        formattedList +
+                        text.substring(end);
+                } else {
+                    newText =
+                        text.substring(0, start) +
+                        `- ${selectedText}` +
+                        text.substring(end);
+                }
+                newCursorPos = start + newText.substring(start).length;
+                break;
+        }
+
+        setInput(newText);
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.selectionStart = newCursorPos;
+            textarea.selectionEnd = newCursorPos;
+        }, 0);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newValue = e.target.value;
+        setInput(newValue);
+    };
+
     return (
         <div className="flex-1 flex flex-col h-screen max-h-screen bg-muted/10">
             <header className="border-b p-4 flex items-center justify-between backdrop-blur-sm bg-background/90 sticky top-0 z-10">
@@ -472,16 +592,22 @@ export function ChatContainer() {
 
                 <div className="flex items-center space-x-1">
                     {selectedChat && messages.length > 0 && (
-                        <Tooltip content="Clear conversation">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={clearChat}
-                                className="text-muted-foreground hover:text-destructive"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </Tooltip>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={clearChat}
+                                        className="text-muted-foreground hover:text-destructive"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Clear conversation</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
                     )}
                 </div>
             </header>
@@ -583,16 +709,96 @@ export function ChatContainer() {
                             onSubmit={handleSubmit}
                             className="flex flex-col gap-2"
                         >
+                            <div className="flex items-center gap-1 px-1 mb-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => insertMarkdownFormat('bold')}
+                                            >
+                                                <Bold className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Bold</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => insertMarkdownFormat('italic')}
+                                            >
+                                                <Italic className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Italic</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => insertMarkdownFormat('code')}
+                                            >
+                                                <Code className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Inline code</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => insertMarkdownFormat('codeblock')}
+                                            >
+                                                <Code className="h-4 w-4 rotate-90" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Code block</TooltipContent>
+                                    </Tooltip>
+
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => insertMarkdownFormat('list')}
+                                            >
+                                                <List className="h-4 w-4" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Bullet list</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+
+                            </div>
+
                             <div className="relative">
                                 <Textarea
                                     ref={inputRef}
                                     value={input}
-                                    onChange={(e) => setInput(e.target.value)}
+                                    onChange={handleInputChange}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Type your message here..."
+                                    placeholder="Type your message here... Markdown is supported"
                                     className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${characterCount > MAX_CHAR_COUNT
-                                            ? "border-destructive"
-                                            : ""
+                                        ? "border-destructive"
+                                        : ""
                                         }`}
                                     disabled={loading}
                                 />
@@ -601,8 +807,8 @@ export function ChatContainer() {
                                         type="submit"
                                         size="icon"
                                         className={`rounded-full h-9 w-9 ${!input.trim() || loading
-                                                ? "opacity-50"
-                                                : "shadow-sm"
+                                            ? "opacity-50"
+                                            : "shadow-sm"
                                             }`}
                                         disabled={!input.trim() || loading}
                                     >
@@ -619,25 +825,41 @@ export function ChatContainer() {
 
                             <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
                                 <div className="flex items-center gap-1.5">
-                                    <Tooltip content="Keyboard shortcuts and formatting">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6"
-                                        >
-                                            <Info className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </Tooltip>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6"
+                                                >
+                                                    <Info className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="space-y-1 max-w-xs">
+                                                    <p>Markdown supported:</p>
+                                                    <ul className="list-disc pl-4 text-xs">
+                                                        <li><code>**bold**</code> for <strong>bold</strong></li>
+                                                        <li><code>*italic*</code> for <em>italic</em></li>
+                                                        <li><code>`code`</code> for inline code</li>
+                                                        <li><code>```</code> for code blocks</li>
+                                                        <li><code>- list</code> for bullet lists</li>
+                                                    </ul>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
                                     <span>
                                         Enter to send • Shift+Enter for new line
-                                        • ↑ to edit last message • Supports
-                                        Markdown
+                                        • ↑ to edit last message
                                     </span>
                                 </div>
                                 <div
                                     className={`${characterCount > MAX_CHAR_COUNT
-                                            ? "text-destructive font-medium"
-                                            : ""
+                                        ? "text-destructive font-medium"
+                                        : ""
                                         }`}
                                 >
                                     {characterCount}/{MAX_CHAR_COUNT}

@@ -1,12 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { ChatMessage } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Edit, RotateCcw, User, Bot } from "lucide-react";
+import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import 'highlight.js/styles/github-dark.css';
+import { Bot, Edit, RotateCcw, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
 
 interface MessageItemProps {
     message: ChatMessage;
@@ -70,18 +73,41 @@ export function MessageItem({
                             isUser ? "bg-muted" : "bg-background",
                         )}
                     >
-                        {isUser ? (
-                            <p className="whitespace-pre-wrap">
+                        <div className={cn(
+                            "prose prose-sm max-w-none",
+                            isUser ? "prose-neutral" : "prose-primary",
+                            "dark:prose-invert"
+                        )}>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight]}
+                                components={{
+                                    pre: ({ node, ...props }) => (
+                                        <pre className="p-2 rounded bg-muted/80 overflow-auto" {...props} />
+                                    ),
+                                    code: ({ node, className, children, ...props }) => {
+                                        const match = /language-(\w+)/.exec(className || '');
+                                        return match ? (
+                                            <code className={className} {...props}>
+                                                {children}
+                                            </code>
+                                        ) : (
+                                            <code className="bg-muted/50 px-1 py-0.5 rounded text-sm" {...props}>
+                                                {children}
+                                            </code>
+                                        );
+                                    },
+                                    a: ({ node, ...props }) => (
+                                        <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
+                                    ),
+                                }}
+                            >
                                 {message.content}
-                            </p>
-                        ) : (
-                            <div className="prose prose-sm max-w-none dark:prose-invert">
-                                <ReactMarkdown>{message.content}</ReactMarkdown>
-                                {isStreaming && cursorVisible && (
-                                    <span className="animate-pulse">▋</span>
-                                )}
-                            </div>
-                        )}
+                            </ReactMarkdown>
+                            {isStreaming && cursorVisible && (
+                                <span className="animate-pulse">▋</span>
+                            )}
+                        </div>
                     </Card>
 
                     <div className="text-xs text-muted-foreground mt-1">
