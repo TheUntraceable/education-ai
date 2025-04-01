@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@heroui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMobile } from "@/hooks/use-mobile";
 import { useSearchParamsClient } from "@/hooks/use-search-params-client";
@@ -316,7 +316,7 @@ export function ChatContainer() {
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement> | KeyboardEvent) => {
         if (e.key === "ArrowUp" && !e.shiftKey && input === "") {
             e.preventDefault();
             if (
@@ -807,7 +807,7 @@ export function ChatContainer() {
                                 <Textarea
                                     ref={inputRef}
                                     value={input}
-                                    onChange={handleInputChange}
+                                    onValueChange={setInput}
                                     onKeyDown={handleKeyDown}
                                     placeholder="Type your message here... Markdown is supported"
                                     className={`min-h-24 pr-12 resize-none transition-all focus:shadow-md ${inputRelatedProps.isOverLimit ? "border-destructive" : ""
