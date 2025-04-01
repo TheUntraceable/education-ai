@@ -207,7 +207,7 @@ export function ChatContainer() {
             toast({
                 title: "Error sending message",
                 description:
-                    error.message ||
+                    (error as Error).message ||
                     "Failed to send message. Please try again.",
                 variant: "destructive",
             });

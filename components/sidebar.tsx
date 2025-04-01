@@ -76,7 +76,7 @@ export function Sidebar() {
             });
 
             const data = await response.json();
-            router.push(`/?tutor=${selectedTutor}&chat=${data._id}`);
+            router.push(`/app/?tutor=${selectedTutor}&chat=${data._id}`);
 
             // Refresh chat list
             fetchChats(selectedTutor);
