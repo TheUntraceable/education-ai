@@ -148,6 +148,7 @@ export async function POST(request: Request) {
                     );
                 });
             });
+            return stream.toTextStreamResponse()
 
         } catch (aiError) {
             console.error("AI Error:", aiError);
