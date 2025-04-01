@@ -56,11 +56,11 @@ export function Sidebar() {
   }
 
   const selectTutor = (tutorId: string) => {
-    router.push(`/?tutor=${tutorId}`)
+    router.push(`/app/?tutor=${tutorId}`)
   }
 
   const selectChat = (chatId: string) => {
-    router.push(`/?tutor=${selectedTutor}&chat=${chatId}`)
+    router.push(`/app/?tutor=${selectedTutor}&chat=${chatId}`)
   }
 
   const createNewChat = async () => {
