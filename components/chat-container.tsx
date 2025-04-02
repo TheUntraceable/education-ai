@@ -69,28 +69,34 @@ export function ChatContainer() {
         }
     }, [selectedChat]);
 
-    useEffect(() => {
-        if (autoScroll) {
-            scrollToBottom();
-        }
-    }, [messages, streamingContent, autoScroll]);
+    // useEffect(() => {
+    //     if (autoScroll) {
+    //         scrollToBottom();
+    //     }
+    // }, [messages.length, autoScroll]);
 
-    useEffect(() => {
-        const scrollArea = scrollAreaRef.current;
+    // useEffect(() => {
+    //     if (autoScroll && streamingContent) {
+    //         scrollToBottom();
+    //     }
+    // }, [streamingContent, autoScroll]);
 
-        const handleScroll = () => {
-            if (!scrollArea) return;
+    // useEffect(() => {
+    //     const scrollArea = scrollAreaRef.current;
 
-            const { scrollTop, scrollHeight, clientHeight } = scrollArea;
-            const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    //     const handleScroll = () => {
+    //         if (!scrollArea) return;
 
-            setAutoScroll(isAtBottom);
-            setShowScrollToBottom(!isAtBottom);
-        };
+    //         const { scrollTop, scrollHeight, clientHeight } = scrollArea;
+    //         const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
 
-        scrollArea?.addEventListener("scroll", handleScroll);
-        return () => scrollArea?.removeEventListener("scroll", handleScroll);
-    }, []);
+    //         setAutoScroll(isAtBottom);
+    //         setShowScrollToBottom(!isAtBottom);
+    //     };
+
+    //     scrollArea?.addEventListener("scroll", handleScroll);
+    //     return () => scrollArea?.removeEventListener("scroll", handleScroll);
+    // }, []);
 
     useEffect(() => {
         setCharacterCount(input.length);
@@ -144,15 +150,15 @@ export function ChatContainer() {
         }
     };
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+    // const scrollToBottom = () => {
+    //     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // };
 
-    const handleScrollToBottom = () => {
-        scrollToBottom();
-        setAutoScroll(true);
-        setShowScrollToBottom(false);
-    };
+    // const handleScrollToBottom = () => {
+    //     scrollToBottom();
+    //     setAutoScroll(true);
+    //     setShowScrollToBottom(false);
+    // };
 
     const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -185,6 +191,7 @@ export function ChatContainer() {
         };
 
         setMessages((prev) => [...prev, userMessage]);
+        setAutoScroll(true);
 
         setLoading(true);
         try {
@@ -224,6 +231,7 @@ export function ChatContainer() {
             };
 
             setMessages((prev) => [...prev, streamingMessage]);
+            // scrollToBottom();
 
             let accumulatedContent = "";
 
@@ -244,9 +252,16 @@ export function ChatContainer() {
                             : msg,
                     ),
                 );
+
+                if (autoScroll) {
+                    // scrollToBottom();
+                }
             }
             setStreamingContent(accumulatedContent);
-            fetchMessages({ chatId: selectedChat, showRefetching: false });
+
+            setTimeout(() => {
+                fetchMessages({ chatId: selectedChat, showRefetching: false });
+            }, 100);
         } catch (error) {
             console.error("Error sending message:", error);
             toast({
@@ -317,6 +332,7 @@ export function ChatContainer() {
 
         setMessages(messagesToKeep);
         setStreamingContent("");
+        setAutoScroll(true);
 
         setLoading(true);
         try {
@@ -341,6 +357,7 @@ export function ChatContainer() {
             }
 
             setMessages((prev) => [...prev, messageToRerun]);
+            // scrollToBottom();
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
@@ -379,9 +396,15 @@ export function ChatContainer() {
                             : msg,
                     ),
                 );
+
+                if (autoScroll) {
+                    // scrollToBottom();
+                }
             }
 
-            fetchMessages({ chatId: selectedChat, showRefetching: false });
+            setTimeout(() => {
+                fetchMessages({ chatId: selectedChat, showRefetching: false });
+            }, 100);
         } catch (error) {
             console.error("Error rerunning message:", error);
             toast({
@@ -404,7 +427,7 @@ export function ChatContainer() {
 
         try {
             const response = await fetch(
-                `/api/messages?chatId=${selectedChat}`,
+                `/api/chats/${selectedChat}`,
                 {
                     method: "DELETE",
                 },
@@ -649,7 +672,7 @@ export function ChatContainer() {
                     )}
                 </ScrollArea>
 
-                {showScrollToBottom && (
+                {/* {showScrollToBottom && (
                     <Button
                         className="absolute bottom-4 right-4 rounded-full shadow-md"
                         size="icon"
@@ -657,7 +680,7 @@ export function ChatContainer() {
                     >
                         <ChevronDown className="h-4 w-4" />
                     </Button>
-                )}
+                )} */}
             </div>
 
             {selectedChat && (
@@ -784,35 +807,35 @@ export function ChatContainer() {
                             <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
                                 <div className="flex items-center gap-1.5">
                                     <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-6 w-6"
-                                                    >
-                                                        <Info className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <div className="space-y-1 max-w-xs">
-                                                        <p>Markdown supported:</p>
-                                                        <ul className="list-disc pl-4 text-xs">
-                                                            <li><code>**bold**</code> for <strong>bold</strong></li>
-                                                            <li><code>*italic*</code> for <em>italic</em></li>
-                                                            <li><code>`code`</code> for inline code</li>
-                                                            <li><code>```</code> for code blocks</li>
-                                                            <li><code>- list</code> for bullet lists</li>
-                                                        </ul>
-                                                    </div>
-                                                </TooltipContent>
-                                            </Tooltip>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6"
+                                                >
+                                                    <Info className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="space-y-1 max-w-xs">
+                                                    <p>Markdown supported:</p>
+                                                    <ul className="list-disc pl-4 text-xs">
+                                                        <li><code>**bold**</code> for <strong>bold</strong></li>
+                                                        <li><code>*italic*</code> for <em>italic</em></li>
+                                                        <li><code>`code`</code> for inline code</li>
+                                                        <li><code>```</code> for code blocks</li>
+                                                        <li><code>- list</code> for bullet lists</li>
+                                                    </ul>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
                                     </TooltipProvider>
 
-                                        <span>
-                                            Enter to send • Shift+Enter for new line
-                                            • ↑ to edit last message
-                                        </span>
+                                    <span>
+                                        Enter to send • Shift+Enter for new line
+                                        • ↑ to edit last message
+                                    </span>
                                 </div>
                                 <div
                                     className={`${characterCount > MAX_CHAR_COUNT

@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         // Get previous messages for context
         const previousMessages = await db
             .collection("messages")
-            .find({ chatId })
+            .find({ chatId, owner: session.user.email })
             .sort({ createdAt: 1 })
             .toArray();
 
