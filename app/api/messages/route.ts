@@ -2,6 +2,7 @@ import clientPromise from "@/lib/mongodb";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { ObjectId } from "mongodb";
+import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 const ai = createOpenAI({
@@ -10,38 +11,15 @@ const ai = createOpenAI({
     compatibility: "compatible",
 });
 
-export async function GET(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const chatId = searchParams.get("chatId");
-
-        if (!chatId) {
-            return NextResponse.json(
-                { error: "chatId is required" },
-                { status: 400 },
-            );
-        }
-
-        const client = await clientPromise;
-        const db = client.db("education-ai");
-
-        const messages = await db
-            .collection("messages")
-            .find({ chatId })
-            .sort({ createdAt: 1 })
-            .toArray();
-
-        return NextResponse.json(messages);
-    } catch (error) {
-        console.error("Error fetching messages:", error);
+export async function POST(request: Request) {
+    const session = await getServerSession();
+    if (!session || !session.user?.email) {
         return NextResponse.json(
-            { error: "Failed to fetch messages" },
-            { status: 500 },
+            { error: "Unauthorized" },
+            { status: 401 },
         );
     }
-}
 
-export async function POST(request: Request) {
     try {
         const body = await request.json();
         const { chatId, content, tutorId, rerun = false } = body;
@@ -51,6 +29,7 @@ export async function POST(request: Request) {
             tutorId,
             contentLength: content?.length,
             rerun,
+            userEmail: session.user.email,
         });
 
         if (!chatId || !content || !tutorId) {
@@ -89,6 +68,7 @@ export async function POST(request: Request) {
                     content,
                     role: "user",
                     createdAt: now,
+                    owner: session.user.email,
                 });
             userMessageId = userMessageResult.insertedId;
             console.log("Saved user message with ID:", userMessageId);
@@ -143,6 +123,7 @@ export async function POST(request: Request) {
                     content: text,
                     role: "assistant",
                     createdAt: new Date(),
+                    owner: session.user!.email,
                 };
                 db.collection("messages")
                     .insertOne(assistantMessage)
@@ -163,6 +144,7 @@ export async function POST(request: Request) {
                     "I'm sorry, I encountered an error processing your request. Please try again later.",
                 role: "assistant",
                 createdAt: new Date(),
+                owner: session.user.email,
             };
 
             const fallbackResult = await db
@@ -179,33 +161,6 @@ export async function POST(request: Request) {
         console.error("Error creating message:", error);
         return NextResponse.json(
             { error: "Failed to create message", details: error },
-            { status: 500 },
-        );
-    }
-}
-
-export async function DELETE(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const chatId = searchParams.get("chatId");
-
-        if (!chatId) {
-            return NextResponse.json(
-                { error: "chatId is required" },
-                { status: 400 },
-            );
-        }
-
-        const client = await clientPromise;
-        const db = client.db("education-ai");
-
-        await db.collection("messages").deleteMany({ chatId });
-
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Error deleting messages:", error);
-        return NextResponse.json(
-            { error: "Failed to delete messages" },
             { status: 500 },
         );
     }

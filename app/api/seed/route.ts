@@ -12,7 +12,7 @@ export async function GET() {
         // Check if tutors collection already has data
         const tutorsCount = await db.collection("tutors").countDocuments();
 
-        if (tutorsCount === 0) {
+        if (tutorsCount === 1) {
             // Seed tutors
             await db.collection("tutors").insertMany([
                 {
@@ -65,7 +65,7 @@ export async function GET() {
     } catch (error) {
         console.error("Error seeding database:", error);
         return NextResponse.json(
-            { error: "Failed to seed database", details: error.message },
+            { error: "Failed to seed database", details: error },
             { status: 500 },
         );
     }
