@@ -166,3 +166,51 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const GET = async (request: Request) => {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+        );
+    }
+
+    try {
+        const url = new URL(request.url);
+        const chatId = url.searchParams.get("chatId");
+
+        if (!chatId) {
+            return NextResponse.json(
+                { error: "chatId is required" },
+                { status: 400 },
+            );
+        }
+
+        const client = await clientPromise;
+        const db = client.db("education-ai");
+
+        // Get the message
+        const messages = await db
+            .collection("messages")
+            .find({ chatId, owner: session.user.email })
+            .sort({ createdAt: -1 })
+            .toArray()
+
+
+        if (!messages) {
+            return NextResponse.json(
+                { error: "Message not found" },
+                { status: 404 },
+            );
+        }
+
+        return NextResponse.json(messages);
+    } catch (error) {
+        console.error("Error fetching message:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch message" },
+            { status: 500 },
+        );
+    }
+}
