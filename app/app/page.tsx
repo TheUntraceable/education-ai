@@ -2,17 +2,20 @@ import { Suspense } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { ChatContainer } from "@/components/chat-container";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthCheck } from "@/components/auth/auth-check";
 
-export default function Home() {
+export default function App() {
     return (
-        <div className="flex h-screen overflow-hidden">
-            <Suspense fallback={<SidebarSkeleton />}>
-                <Sidebar />
-            </Suspense>
-            <Suspense fallback={<ChatSkeleton />}>
-                <ChatContainer />
-            </Suspense>
-        </div>
+        <AuthCheck>
+            <div className="flex h-screen overflow-hidden">
+                <Suspense fallback={<SidebarSkeleton />}>
+                    <Sidebar />
+                </Suspense>
+                <Suspense fallback={<ChatSkeleton />}>
+                    <ChatContainer />
+                </Suspense>
+            </div>
+        </AuthCheck>
     );
 }
 
