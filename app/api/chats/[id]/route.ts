@@ -1,11 +1,20 @@
-import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { authOptions } from "@/lib/utils/auth-options";
 import { ObjectId } from "mongodb";
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+        );
+    }
     try {
         const { id } = await params;
 
@@ -37,6 +46,19 @@ export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+        );
+    }
+    if (!session.user.email) {
+        return NextResponse.json(
+            { error: "User email is required" },
+            { status: 400 },
+        );
+    }
     try {
         const { id } = await params;
         const { title } = await request.json();
@@ -72,6 +94,19 @@ export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> },
 ) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+        );
+    }
+    if (!session.user.email) {
+        return NextResponse.json(
+            { error: "User email is required" },
+            { status: 400 },
+        );
+    }
     try {
         const { id } = await params;
 
@@ -81,7 +116,7 @@ export async function DELETE(
         // Delete chat
         const result = await db
             .collection("chats")
-            .deleteOne({ _id: new ObjectId(id) });
+            .deleteOne({ _id: new ObjectId(id), owner: session.user?.email });
 
         if (result.deletedCount === 0) {
             return NextResponse.json(

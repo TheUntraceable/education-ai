@@ -1,4 +1,5 @@
 import clientPromise from "@/lib/mongodb";
+import { authOptions } from "@/lib/utils/auth-options";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { ObjectId } from "mongodb";
@@ -12,7 +13,7 @@ const ai = createOpenAI({
 });
 
 export async function POST(request: Request) {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
         return NextResponse.json(
             { error: "Unauthorized" },

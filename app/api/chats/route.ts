@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { authOptions } from "@/lib/utils/auth-options";
+import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
     try {
@@ -33,6 +35,20 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401 },
+        );
+    }
+    if (!session.user.email) {
+        return NextResponse.json(
+            { error: "User email is required" },
+            { status: 400 },
+        );
+    }
+
     try {
         const { tutorId } = await request.json();
 
@@ -52,6 +68,7 @@ export async function POST(request: Request) {
             tutorId,
             createdAt: now,
             updatedAt: now,
+            owner: session.user!.email,
         });
 
         const chat = await db
