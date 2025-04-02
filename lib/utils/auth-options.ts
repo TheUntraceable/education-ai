@@ -7,10 +7,10 @@ import client from "@/lib/mongodb";
 export const authOptions: NextAuthOptions = {
     adapter: MongoDBAdapter(client),
     providers: [
-        GithubProvider({
+        /** GithubProvider({
             clientId: process.env.GITHUB_ID!,
             clientSecret: process.env.GITHUB_SECRET!,
-        }),
+        }), **/
         DiscordProvider({
             clientId: process.env.DISCORD_ID!,
             clientSecret: process.env.DISCORD_SECRET!,
