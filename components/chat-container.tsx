@@ -120,6 +120,24 @@ export function ChatContainer() {
         }
     };
 
+    // Add this helper function to extract thinking content
+    const extractThinkingContent = (content: string) => {
+        const thinkRegex = /<think>([\s\S]*?)<\/think>/g;
+        let thinking = "";
+        let processedContent = content;
+        
+        // Extract all thinking blocks
+        const thinkMatches = content.match(thinkRegex);
+        if (thinkMatches) {
+            thinkMatches.forEach(match => {
+                thinking += match.replace(/<think>|<\/think>/g, "");
+                processedContent = processedContent.replace(match, "");
+            });
+        }
+        
+        return { content: processedContent, thinking };
+    };
+
     const fetchMessages = async ({
         chatId,
         showRefetching = false,
@@ -137,7 +155,21 @@ export function ChatContainer() {
                 throw new Error(`Failed to fetch messages: ${response.status}`);
             }
             const data = await response.json();
-            setMessages(data);
+            
+            // Process assistant messages to extract thinking content
+            const processedMessages = data.map((message: ChatMessage) => {
+                if (message.role === "assistant" && message.content.includes("<think>")) {
+                    const { content, thinking } = extractThinkingContent(message.content);
+                    return {
+                        ...message,
+                        content,
+                        thinking: thinking || message.thinking
+                    };
+                }
+                return message;
+            });
+            
+            setMessages(processedMessages);
         } catch (error) {
             console.error("Error fetching messages:", error);
             toast({
