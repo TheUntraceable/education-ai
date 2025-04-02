@@ -113,7 +113,7 @@ export async function POST(request: Request) {
             // Generate AI response with streaming
             const stream = streamText({
                 model: ai("deepseek-ai/DeepSeek-R1-Distill-Llama-70B"),
-                messages: [...messageHistory, systemMessage],
+                messages: [systemMessage, ...messageHistory],
             });
 
             stream.text.then((text) => {
