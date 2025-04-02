@@ -17,35 +17,35 @@ export async function GET() {
             await db.collection("tutors").insertMany([
                 {
                     _id: new ObjectId(),
-                    name: "Professor Einstein",
+                    name: "Physics Tutor",
                     subject: "Physics",
                     description:
                         "Expert in theoretical physics with a focus on relativity and quantum mechanics. I can help explain complex physics concepts in simple terms.",
                 },
                 {
                     _id: new ObjectId(),
-                    name: "Ms. Ada",
+                    name: "Computer Science Tutor",
                     subject: "Computer Science",
                     description:
                         "Specialized in programming, algorithms, and computer science fundamentals. I can help with coding problems and explain CS concepts clearly.",
                 },
                 {
                     _id: new ObjectId(),
-                    name: "Dr. Newton",
+                    name: "Mathematics Tutor",
                     subject: "Mathematics",
                     description:
                         "Mathematics expert with knowledge in calculus, algebra, and statistics. I can help solve math problems step-by-step and explain mathematical concepts.",
                 },
                 {
                     _id: new ObjectId(),
-                    name: "Professor Curie",
+                    name: "Chemistry Tutor",
                     subject: "Chemistry",
                     description:
                         "Chemistry specialist with expertise in organic chemistry, biochemistry, and chemical reactions. I can help with chemical equations and concepts.",
                 },
                 {
                     _id: new ObjectId(),
-                    name: "Mr. Shakespeare",
+                    name: "Literature Tutor",
                     subject: "Literature",
                     description:
                         "Literature expert with knowledge of classic and modern works. I can help with literary analysis, writing essays, and understanding complex texts.",
