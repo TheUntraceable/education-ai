@@ -194,7 +194,7 @@ export const GET = async (request: Request) => {
         const messages = await db
             .collection("messages")
             .find({ chatId, owner: session.user.email })
-            .sort({ createdAt: -1 })
+            // .sort({ createdAt: -1 })
             .toArray()
 
 
