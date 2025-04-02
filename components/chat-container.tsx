@@ -228,12 +228,15 @@ export function ChatContainer() {
                 content: "",
                 role: "assistant",
                 createdAt: new Date().toISOString(),
+                thinking: "",
             };
 
             setMessages((prev) => [...prev, streamingMessage]);
             // scrollToBottom();
 
             let accumulatedContent = "";
+            let accumulatedThinking = "";
+            let inThinkingBlock = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -243,12 +246,43 @@ export function ChatContainer() {
                 }
 
                 const chunk = decoder.decode(value, { stream: true });
-                accumulatedContent += chunk;
+                
+                // Process chunk to extract thinking blocks
+                let processedChunk = "";
+                for (let i = 0; i < chunk.length; i++) {
+                    // Check for opening thinking tag
+                    if (chunk.substring(i).startsWith("<think>") && !inThinkingBlock) {
+                        inThinkingBlock = true;
+                        i += 6; // Skip "<think>"
+                        continue;
+                    }
+                    
+                    // Check for closing thinking tag
+                    if (chunk.substring(i).startsWith("</think>") && inThinkingBlock) {
+                        inThinkingBlock = false;
+                        i += 7; // Skip "</think>"
+                        continue;
+                    }
+                    
+                    // Add character to the appropriate accumulated content
+                    if (inThinkingBlock) {
+                        accumulatedThinking += chunk[i];
+                    } else {
+                        processedChunk += chunk[i];
+                    }
+                }
+                
+                // Update accumulatedContent with non-thinking text
+                accumulatedContent += processedChunk;
 
                 setMessages((prev) =>
                     prev.map((msg) =>
                         msg._id === streamingId
-                            ? { ...msg, content: accumulatedContent }
+                            ? { 
+                                ...msg, 
+                                content: accumulatedContent,
+                                thinking: accumulatedThinking 
+                            }
                             : msg,
                     ),
                 );
@@ -373,11 +407,14 @@ export function ChatContainer() {
                 content: "",
                 role: "assistant",
                 createdAt: new Date().toISOString(),
+                thinking: "",
             };
 
             setMessages((prev) => [...prev, streamingMessage]);
 
             let accumulatedContent = "";
+            let accumulatedThinking = "";
+            let inThinkingBlock = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -387,12 +424,43 @@ export function ChatContainer() {
                 }
 
                 const chunk = decoder.decode(value, { stream: true });
-                accumulatedContent += chunk;
+                
+                // Process chunk to extract thinking blocks
+                let processedChunk = "";
+                for (let i = 0; i < chunk.length; i++) {
+                    // Check for opening thinking tag
+                    if (chunk.substring(i).startsWith("<think>") && !inThinkingBlock) {
+                        inThinkingBlock = true;
+                        i += 6; // Skip "<think>"
+                        continue;
+                    }
+                    
+                    // Check for closing thinking tag
+                    if (chunk.substring(i).startsWith("</think>") && inThinkingBlock) {
+                        inThinkingBlock = false;
+                        i += 7; // Skip "</think>"
+                        continue;
+                    }
+                    
+                    // Add character to the appropriate accumulated content
+                    if (inThinkingBlock) {
+                        accumulatedThinking += chunk[i];
+                    } else {
+                        processedChunk += chunk[i];
+                    }
+                }
+                
+                // Update accumulatedContent with non-thinking text
+                accumulatedContent += processedChunk;
 
                 setMessages((prev) =>
                     prev.map((msg) =>
                         msg._id === streamingId
-                            ? { ...msg, content: accumulatedContent }
+                            ? { 
+                                ...msg, 
+                                content: accumulatedContent,
+                                thinking: accumulatedThinking 
+                            }
                             : msg,
                     ),
                 );

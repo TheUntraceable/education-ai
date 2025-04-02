@@ -20,4 +20,5 @@ export interface ChatMessage {
     content: string;
     role: "user" | "assistant";
     createdAt: string;
+    thinking?: string;
 }

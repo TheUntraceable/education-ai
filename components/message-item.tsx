@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import 'highlight.js/styles/github-dark.css';
-import { Bot, Edit, RotateCcw, User } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Edit, RotateCcw, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from 'rehype-highlight';
@@ -28,6 +28,7 @@ export function MessageItem({
 }: MessageItemProps) {
     const [showActions, setShowActions] = useState(false);
     const [cursorVisible, setCursorVisible] = useState(true);
+    const [showThinking, setShowThinking] = useState(false);
 
     // Blinking cursor effect for streaming messages
     useEffect(() => {
@@ -41,6 +42,7 @@ export function MessageItem({
     }, [isStreaming]);
 
     const isUser = message.role === "user";
+    const hasThinking = !!message.thinking && message.thinking.trim().length > 0;
 
     return (
         <div
@@ -73,6 +75,34 @@ export function MessageItem({
                             isUser ? "bg-muted" : "bg-background",
                         )}
                     >
+                        {hasThinking && !isUser && (
+                            <div className="mb-3">
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="mb-2 w-full flex justify-between items-center text-xs" 
+                                    onClick={() => setShowThinking(!showThinking)}
+                                >
+                                    <span className="flex items-center">
+                                        {showThinking ? <ChevronDown className="h-3 w-3 mr-1" /> : <ChevronRight className="h-3 w-3 mr-1" />}
+                                        Thinking...
+                                    </span>
+                                    <span className="text-muted-foreground">See reasoning</span>
+                                </Button>
+                                
+                                {showThinking && (
+                                    <Card className="p-3 bg-muted/40 text-sm text-muted-foreground mb-3 whitespace-pre-wrap">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            rehypePlugins={[rehypeHighlight]}
+                                        >
+                                            {message.thinking || ""}
+                                        </ReactMarkdown>
+                                    </Card>
+                                )}
+                            </div>
+                        )}
+
                         <div className={cn(
                             "prose prose-sm max-w-none",
                             isUser ? "prose-neutral" : "prose-primary",
